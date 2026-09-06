@@ -1,0 +1,49 @@
+{
+  "summary": "Backend: 7/7 tests pass (root, telemetry, insights, tracking CRUD). Frontend: all requested UI flows work (4-tab bar with no AI tab, greeting 'Sasha', profile 'Sasha Giyu Bau Hasem', no Talkback/Volume/AI/mic terms, language toggle EN/ID, theme light/dark, edit-goals modal saves, goals weekly banner + bar chart + 3 goal bars, gesture simulator only has sim-double-tap and sim-long-press). CRITICAL bug found: connection state is reset to DISCONNECTED whenever user leaves the Device tab because RealBLEPanel's unmount cleanup calls onConnectChange(null) unconditionally, which flips the shared `connected` state to false. As a result: (a) after tapping device-reconnect and switching to Health, battery-bar is NOT visible and header shows OFFLINE/'Tidak Terhubung' despite the tracking pill being active; (b) attempting to stop tracking from Device after returning is ignored because toggleTracking short-circuits on !connected, so 'active-tracking-pill' stays visible. No React Native/Expo deprecated package issues detected in the tested surface.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [
+      {
+        "component": "IndexInner + RealBLEPanel unmount",
+        "issue": "Switching away from the Device tab unmounts RealBLEPanel; its cleanup calls onConnectChange(null) -> handleRealBleConnected(null) -> setConnected(false), so the app forgets the simulated (or real) connection. After tapping 'device-reconnect' and navigating to Health, battery-bar never appears and Health hero shows '--' BPM with the OFFLINE dot. Also breaks stop-tracking from the Device tab on return (toggleTracking exits early on !connected), leaving 'active-tracking-pill' stuck visible. Reference: /app/frontend/app/index.tsx lines 1289-1300 (cleanup) and 242-259 (handleRealBleConnected).",
+        "testID": "battery-bar / active-tracking-pill / device-track-toggle",
+        "priority": "HIGH"
+      }
+    ],
+    "integration_issues": [
+      {
+        "flow": "Connect via device-reconnect -> Health tab -> stop tracking",
+        "issue": "Connected state is lost the moment the user leaves the Device tab, which cascades into Health showing disconnected UI (no BPM number, no battery bar) and the stop-tracking control on Device becoming a no-op.",
+        "affected_testIDs": ["device-reconnect", "device-track-toggle", "battery-bar", "active-tracking-pill", "greeting-card"]
+      }
+    ],
+    "design_issues": [],
+    "react_native_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_sasha_band_api.py",
+    "/app/test_reports/pytest/pytest_results.xml"
+  ],
+  "action_items": [
+    "In RealBLEPanel unmount cleanup (index.tsx ~lines 1289-1300), only call onConnectChange(null) if a REAL BLE device was actually connected via this panel (guard with `if (connected)`), and even then do NOT reset the parent's demo-connected state. Recommended: give RealBLEPanel a separate 'real-only' callback, or track a `hasRealConnection` flag so the simulated/demo connection from doConnect() isn't wiped when the Device tab unmounts.",
+    "Alternative quick fix: In handleRealBleConnected, ignore null callbacks when connection was established via simulated doConnect (e.g., track a `realConnected` boolean and only setConnected(false) when the real connection was the source).",
+    "After fix, re-verify: tap device-reconnect -> switch to Health -> battery-bar visible AND greeting BPM shows a real number; then return to Device -> device-track-toggle stops tracking and active-tracking-pill disappears."
+  ],
+  "critical_code_review_comments": [
+    "index.tsx is 1749 lines - exceeds 700-line guideline. Should be split into per-screen modules (HealthScreen, GoalsScreen, DeviceScreen, SettingsScreen, RealBLEPanel, EditGoalsModal).",
+    "Effect cleanup in RealBLEPanel mixes real-BLE lifecycle with the shared app 'connected' state, causing tab-switch to reset the demo connection (see bug above)."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_sasha_band_api.py (new)",
+    "/app/test_reports/iteration_1.json (new)"
+  ],
+  "success_rate": {"backend": "100%", "frontend": "~85% (all UI elements present & correct; connection persistence bug breaks 2 flows)"},
+  "seed_data_creation": "Tracking sessions collection is created/cleared/populated by tests then cleaned up (all TEST_ prefixed).",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Backend is fully green. Focus retest on: (1) tap tab-device -> device-reconnect -> tab-health -> assert battery-bar visible and greeting bpm != '--'. (2) After that flow, return to device tab, tap device-track-toggle to stop tracking and assert active-tracking-pill disappears. Root cause is RealBLEPanel unmount cleanup resetting shared connected state.",
+  "rca_of_issue": "RCA: RealBLEPanel is rendered only inside DeviceScreen. React unmounts it whenever `tab !== 'device'`. Its useEffect cleanup at lines 1289-1300 unconditionally calls onBpmStream(null) and onConnectChange(null). onConnectChange is `handleRealBleConnected` which, when called with null, executes `setConnected(false); setRealBpm(null);`. Reproduction: open app -> Device tab -> tap 'device-reconnect' (connected=true) -> tap 'device-track-toggle' (tracking=true) -> tap 'tab-health'. Observed: header 'OFFLINE', greeting-card without BPM, battery-bar missing. Because tracking is separate state it remains true and the tracking pill still shows, creating inconsistent UI. Mitigation: guard cleanup so it only affects the real BLE-managed connection (see action_items)."
+}

@@ -1,0 +1,59 @@
+{
+  "expo": {
+    "name": "Sasha Band",
+    "slug": "frontend",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/images/icon.png",
+    "scheme": "frontend",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "ios": {
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSBluetoothAlwaysUsageDescription": "Connect to your Sasha Band over Bluetooth.",
+        "NSBluetoothPeripheralUsageDescription": "Sync health data from your Sasha Band."
+      },
+      "bundleIdentifier": "com.emergent.sashapinkmobile.d2vcaf"
+    },
+    "android": {
+      "permissions": [
+        "BLUETOOTH_SCAN",
+        "BLUETOOTH_CONNECT",
+        "ACCESS_FINE_LOCATION"
+      ],
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/images/adaptive-icon.png",
+        "backgroundColor": "#FFF0F6"
+      },
+      "edgeToEdgeEnabled": true,
+      "package": "com.emergent.sashapinkmobile.d2vcaf"
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "single",
+      "favicon": "./assets/images/favicon.png"
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/images/splash-image.png",
+          "imageWidth": 200,
+          "resizeMode": "contain",
+          "backgroundColor": "#FFF0F6"
+        }
+      ],
+      "expo-font",
+      "expo-image",
+      "expo-secure-store",
+      "expo-web-browser",
+      "expo-status-bar",
+      "react-native-ble-plx"
+    ],
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}
